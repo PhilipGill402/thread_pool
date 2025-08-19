@@ -1,4 +1,7 @@
 #pragma once
 #include <stdlib.h>
 
-typedef struct job job;
+typedef struct job{
+    void (*fn)(void*);
+    void *arg;
+}job;
