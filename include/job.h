@@ -3,5 +3,7 @@
 
 typedef struct job{
     void (*fn)(void*);
-    void *arg;
+    void* arg;
 }job;
+
+struct job* init_job(void (*function)(void*), void* argument);
