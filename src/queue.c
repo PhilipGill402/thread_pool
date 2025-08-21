@@ -17,15 +17,15 @@ void destroy_queue(struct job_queue* queue){
     free(queue);
 }
 
-void enqueue(struct job_queue* queue, struct job* job){
+int enqueue(struct job_queue* queue, struct job* job){
     if (queue->num_jobs == queue->capacity){
-        return; 
+        return -1; 
     }
 
     queue->buffer[queue->tail] = job;
     queue->tail = (queue->tail + 1) % queue->capacity;
     queue->num_jobs++;
-    return; 
+    return 0; 
 }
 
 struct job* dequeue(struct job_queue* queue){

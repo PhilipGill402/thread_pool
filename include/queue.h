@@ -13,5 +13,5 @@ typedef struct job_queue{
 
 struct job_queue* init_queue(int capacity);
 void destroy_queue(struct job_queue* queue);
-void enqueue(struct job_queue* queue, struct job* job);
+int enqueue(struct job_queue* queue, struct job* job);
 struct job* dequeue(struct job_queue* queue);
