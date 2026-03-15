@@ -1,41 +1,105 @@
 #include "queue.h"
 
-struct job_queue* init_queue(int capacity){
-    struct job_queue* queue = malloc(sizeof(struct job_queue));
+queue_t create_queue(size_t element_size, arena_t* allocator){
+    queue_t queue;
+    
+    queue.allocator = allocator;
+    queue.size = 0;
+    queue.capacity = 10;
+    queue.head = 0;
+    queue.rear = 0;
+    queue.element_size = element_size;
 
-    queue->buffer = malloc(sizeof(struct job*) * capacity);
-    queue->capacity = capacity;
-    queue->head = 0;
-    queue->tail = 0;
-    queue->num_jobs = 0;
+    if (queue.allocator) {
+        queue.array = reserve(element_size * 10, queue.allocator);
+    } else {
+        queue.array = malloc(element_size * 10);
+    }
 
     return queue;
-} 
-
-void destroy_queue(struct job_queue* queue){
-    free(queue->buffer);
-    free(queue);
 }
 
-int enqueue(struct job_queue* queue, struct job* job){
-    if (queue->num_jobs == queue->capacity){
-        return -1; 
+void queue_release(queue_t* queue){
+    if (queue->allocator) {
+        release(queue->array, queue->allocator);
+    } else {
+        free(queue->array);
+    }
+    queue->array = NULL;
+}
+
+int resize_queue(queue_t* queue, int new_capacity){
+    void* new_array;
+    if (queue->allocator) {
+        new_array = reserve(queue->element_size * new_capacity, queue->allocator);
+    } else {
+        new_array = malloc(queue->element_size * new_capacity);
     }
 
-    queue->buffer[queue->tail] = job;
-    queue->tail = (queue->tail + 1) % queue->capacity;
-    queue->num_jobs++;
-    return 0; 
+    if (new_array == NULL){
+        fprintf(stderr, "failed to allocate memory");
+        return -1;
+    }
+    
+    for (int i = 0; i < queue->size; i++){
+        int index = (queue->head + i) % queue->capacity;
+        memcpy((char*)new_array + i * queue->element_size, (char*)queue->array + index * queue->element_size, queue->element_size);
+    }
+    
+    if (queue->allocator) {
+        release(queue->array, queue->allocator); 
+    } else {
+        free(queue->array);
+    }
+
+    queue->array = new_array;
+    queue->head = 0;
+    queue->rear = queue->size;
+    queue->capacity = new_capacity;
+
+    return 0;
 }
 
-struct job* dequeue(struct job_queue* queue){
-    if (queue->num_jobs == 0){
+int enqueue(queue_t* queue, void* val){
+    if (queue->size == queue->capacity){
+        if (resize_queue(queue, queue->capacity * 2) == -1){
+            fprintf(stderr, "failed to resize queue"); 
+            return -1;
+        }
+    } 
+    
+    if (is_empty(queue)){
+        queue->head = queue->rear;
+    }
+    
+    memcpy((char*)queue->array + queue->rear * queue->element_size, val, queue->element_size);
+    queue->size++;
+    queue->rear = (queue->rear + 1) % queue->capacity;
+    return 0;
+}
+
+void* dequeue(queue_t* queue){
+    if (is_empty(queue)){
+        fprintf(stderr, "can't dequeue from empty queue");
         return NULL;
-    }
+    } 
+    
+    void* val = (char*)queue->array + queue->head * queue->element_size;
+    queue->size--;
+    queue->head = (queue-> head + 1) % queue->capacity;
+    
+    return val;
+}
 
-    struct job* job = queue->buffer[queue->head];
-    queue->head = (queue->head + 1) % queue->capacity;
-    queue->num_jobs--;
+void* first(const queue_t* queue){
+    void* val = (char*)queue->array + queue->head * queue->element_size;
+    return val;
+}
 
-    return job;
+int is_empty(const queue_t* queue){
+    return queue->size == 0;
+}
+
+int queue_size(const queue_t* queue){
+    return queue->size;
 }

@@ -1,9 +1,9 @@
 #pragma once
 #include <stdlib.h>
 
-typedef struct job{
+typedef struct {
     void (*fn)(void*);
     void* arg;
-}job;
+}job_t;
 
-struct job* init_job(void (*function)(void*), void* argument);
+job_t init_job(void (*function)(void*), void* argument);
