@@ -3,10 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef QUEUE_USE_ARENA
+#include "arena.h"
+#endif
+
 typedef struct arena_t arena_t;
-void* reserve(size_t size, arena_t* arena);
-void release(void* ptr, arena_t* arena);
-void* move(void* ptr, size_t size, arena_t* arena);
 
 typedef struct queue_t{
     arena_t* allocator; 

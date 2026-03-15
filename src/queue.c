@@ -9,10 +9,13 @@ queue_t create_queue(size_t element_size, arena_t* allocator){
     queue.head = 0;
     queue.rear = 0;
     queue.element_size = element_size;
-
+    
+#ifdef QUEUE_USE_ARENA
     if (queue.allocator) {
         queue.array = reserve(element_size * 10, queue.allocator);
-    } else {
+    } else
+#endif
+    {
         queue.array = malloc(element_size * 10);
     }
 
@@ -20,9 +23,13 @@ queue_t create_queue(size_t element_size, arena_t* allocator){
 }
 
 void queue_release(queue_t* queue){
+
+#ifdef QUEUE_USE_ARENA
     if (queue->allocator) {
         release(queue->array, queue->allocator);
-    } else {
+    } else
+#endif
+    {
         free(queue->array);
     }
     queue->array = NULL;
@@ -30,9 +37,12 @@ void queue_release(queue_t* queue){
 
 int resize_queue(queue_t* queue, int new_capacity){
     void* new_array;
+#ifdef QUEUE_USE_ARENA 
     if (queue->allocator) {
         new_array = reserve(queue->element_size * new_capacity, queue->allocator);
-    } else {
+    } else 
+#endif
+    {
         new_array = malloc(queue->element_size * new_capacity);
     }
 
@@ -45,10 +55,13 @@ int resize_queue(queue_t* queue, int new_capacity){
         int index = (queue->head + i) % queue->capacity;
         memcpy((char*)new_array + i * queue->element_size, (char*)queue->array + index * queue->element_size, queue->element_size);
     }
-    
+
+#ifdef QUEUE_USE_ARENA
     if (queue->allocator) {
         release(queue->array, queue->allocator); 
-    } else {
+    } else
+#endif 
+    {
         free(queue->array);
     }
 
