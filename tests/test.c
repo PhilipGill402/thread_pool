@@ -6,21 +6,24 @@ void fn(void* arg) {
     printf("start %d\n", num);
     fflush(stdout);
 
-    sleep(1);
+    sleep(2);
 
     printf("end %d\n", num);
     fflush(stdout);
 }
 
 int main() {
-    pool_t* pool = create_pool(4, 10);
+    pool_t* pool = create_pool(2, 20);
 
-    int a = 1, b = 2, c = 3, d = 4;
+    int jobs[10];
+    for (int i = 0; i < 10; i++) {
+        jobs[i] = i;
+        submit_job(pool, fn, &jobs[i]);
+    }
 
-    submit_job(pool, fn, &a);
-    submit_job(pool, fn, &b);
-    submit_job(pool, fn, &c);
-    submit_job(pool, fn, &d);
+    usleep(100000); // 0.1 sec
+    shutdown_pool(pool, 0); // non-graceful
 
-    wait_pool(pool);
+    destroy_pool(pool);
+    return 0;
 }

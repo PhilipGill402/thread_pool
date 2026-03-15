@@ -9,10 +9,15 @@ void* worker(void* arg) {
         while (is_empty(&pool->queue) && !pool->shutdown_requested) {
             pthread_cond_wait(&pool->not_empty, &pool->mutex);
         } 
-
-        if (pool->shutdown_requested && !is_empty(&pool->queue)) {
-            pthread_mutex_unlock(&pool->mutex); 
-            return NULL;
+    
+        if (pool->shutdown_requested) {
+            if (!pool->graceful) {
+                pthread_mutex_unlock(&pool->mutex);
+                return NULL;
+            } else if (is_empty(&pool->queue)) {
+                pthread_mutex_unlock(&pool->mutex);
+                return NULL;
+            }
         }
 
         job_t job = *(job_t*)dequeue(&pool->queue);
@@ -85,27 +90,38 @@ int submit_job(pool_t* tp, void (*fn)(void*), void* arg) {
 }
 
 void shutdown_pool(pool_t* tp, int graceful) {
+    pthread_mutex_lock(&tp->mutex);
+    
     tp->shutdown_requested = 1;
     tp->graceful = graceful;
+    
+    pthread_mutex_unlock(&tp->mutex);
 }
 
-void destroy_pool(pool_t* tp) {
-    if (tp->shutdown_requested && tp->graceful) {
-        pthread_cond_wait(&tp->not_empty, &tp->mutex);
-    } 
+void destroy_pool(pool_t* pool) {
+    pthread_mutex_lock(&pool->mutex);
+    pool->shutdown_requested = 1;
+    pool->graceful = 1;
 
-    free(tp->workers);
-    tp->workers = NULL;
-    queue_release(&tp->queue);
-    tp->num_workers = 0;
-    pthread_mutex_destroy(&tp->mutex);
-    pthread_cond_destroy(&tp->not_empty);
-    pthread_cond_destroy(&tp->not_full);
-    tp->accepting = 0;
-    tp->shutdown_requested = 0;
-    tp->graceful = 0;
-    free(tp);
-    tp = NULL;
+    pthread_cond_broadcast(&pool->not_empty);
+    pthread_cond_broadcast(&pool->not_full);
+    pthread_cond_broadcast(&pool->finished);
+    pthread_mutex_unlock(&pool->mutex);
+
+    for (int i = 0; i < pool->num_workers; i++) {
+        pthread_join(pool->workers[i], NULL);
+    }
+
+    pthread_mutex_destroy(&pool->mutex);
+    pthread_cond_destroy(&pool->not_empty);
+    pthread_cond_destroy(&pool->not_full);
+    pthread_cond_destroy(&pool->finished);
+
+    free(pool->workers);
+    pool->workers = NULL;
+    queue_release(&pool->queue);
+    free(pool);
+    pool = NULL;
 }
 
 void wait_pool(pool_t* pool) {
