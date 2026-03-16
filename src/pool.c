@@ -1,7 +1,7 @@
 #include "pool.h"
 
 void* worker(void* arg) {
-    pool_t* pool = arg;
+    thread_pool_t* pool = arg;
 
     while (1) {
         pthread_mutex_lock(&pool->mutex);
@@ -42,8 +42,8 @@ void* worker(void* arg) {
     return NULL;
 }
 
-pool_t* create_pool(int num_threads, int queue_capacity) {
-    pool_t* pool = malloc(sizeof(pool_t));
+thread_pool_t* create_pool(int num_threads, int queue_capacity) {
+    thread_pool_t* pool = malloc(sizeof(thread_pool_t));
     pool->workers = malloc(sizeof(pthread_t)*num_threads);
     pool->num_workers = num_threads;
     pool->queue = create_queue(sizeof(job_t), NULL);
@@ -66,7 +66,7 @@ pool_t* create_pool(int num_threads, int queue_capacity) {
     return pool;
 }
 
-int submit_job(pool_t* tp, void (*fn)(void*), void* arg) {
+int submit_job(thread_pool_t* tp, void (*fn)(void*), void* arg) {
     job_t job = init_job(fn, arg);
     
     pthread_mutex_lock(&tp->mutex);
@@ -89,7 +89,7 @@ int submit_job(pool_t* tp, void (*fn)(void*), void* arg) {
     return 1;
 }
 
-void shutdown_pool(pool_t* tp, int graceful) {
+void shutdown_pool(thread_pool_t* tp, int graceful) {
     pthread_mutex_lock(&tp->mutex);
     
     tp->shutdown_requested = 1;
@@ -98,10 +98,9 @@ void shutdown_pool(pool_t* tp, int graceful) {
     pthread_mutex_unlock(&tp->mutex);
 }
 
-void destroy_pool(pool_t* pool) {
+void destroy_pool(thread_pool_t* pool) {
     pthread_mutex_lock(&pool->mutex);
     pool->shutdown_requested = 1;
-    pool->graceful = 1;
 
     pthread_cond_broadcast(&pool->not_empty);
     pthread_cond_broadcast(&pool->not_full);
@@ -124,7 +123,7 @@ void destroy_pool(pool_t* pool) {
     pool = NULL;
 }
 
-void wait_pool(pool_t* pool) {
+void wait_pool(thread_pool_t* pool) {
     pthread_mutex_lock(&pool->mutex);
     
     while (!is_empty(&pool->queue) || pool->active_workers > 0) {
